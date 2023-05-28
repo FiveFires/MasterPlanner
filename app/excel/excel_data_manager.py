@@ -1,3 +1,11 @@
+"""
+Module: ExcelDataManager
+Description: This module provides a class for reading, writing, 
+                and appending data to an Excel file using pandas.
+
+Author: Adam Ondryas
+Email: adam.ondryas@gmail.com
+"""
 import pandas as pd
 
 class ExcelDataManager:
