@@ -63,4 +63,14 @@ class DataFiller():
         df_to_be_updated.update(df_with_new_values)
 
     def __align_indeces(self, base_df, to_update_df):
-        to_update_df.index = base_df.index[0:(to_update_df.shape[0])]
+        row_diff = base_df.shape[0] - to_update_df.shape[0]
+
+        if(row_diff > 0):
+            to_update_df.index = base_df.index[0:(to_update_df.shape[0])]
+
+        elif(row_diff < 0):
+            to_update_df.drop(to_update_df.tail(abs(row_diff)).index, inplace=True)
+            to_update_df.index = base_df.index
+
+        elif(base_df.shape[0] == to_update_df.shape[0]):
+            to_update_df.index = base_df.index

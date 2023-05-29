@@ -17,7 +17,7 @@ class ExcelDataManager:
 
     def read_excel(self):
         try:
-            self.df = pd.read_excel(self.file_path, self.sheet_name)
+            self.df = pd.read_excel(self.file_path, self.sheet_name, skiprows=self.column_name_row)
         
         except FileNotFoundError:
             print(f"File '{self.file_path}' not found.")
@@ -38,7 +38,7 @@ class ExcelDataManager:
     def append_to_excel(self, data, index=False):
         try:
             with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists="overlay") as writer:
-                data.to_excel(writer, sheet_name=self.sheet_name, index=index)
+                data.to_excel(writer, sheet_name=self.sheet_name, index=index, startrow=self.column_name_row)
                 print(f"Data successfully appended to '{self.file_path}'.")
                 
         except Exception as e:
