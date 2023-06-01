@@ -1,7 +1,16 @@
-from excel.datafiller import DataFiller
-from excel.excel_data_manager import ExcelDataManager
+from PyQt6 import QtWidgets
+
+from modules.data_filler import DataFiller
+from modules.excel_data_manager import ExcelDataManager
+from gui.main_window import MainWindow
 
 if __name__ == "__main__":
+    app = QtWidgets.QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec()
+
+"""
     source_file_path = input("Source file path: ")
     source_sheet_name = input("Source sheet name: ")
     source_sheet_column_name_row = int(input("which row contains column names in source sheet?: ")) - 1
@@ -18,3 +27,5 @@ if __name__ == "__main__":
     datafiller_instance = DataFiller(source_sheet, destination_sheet)
 
     datafiller_instance.fill_data()
+"""
+
