@@ -1,4 +1,4 @@
-# MasterPlanner
+# MasterPlanner <img src="app/gui/resources/icons/master_planner_icon.png" width="48">
 
 An app that provides multiple proprietary tools.
 
