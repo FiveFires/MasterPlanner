@@ -1,5 +1,6 @@
 # MasterPlanner
 
+An app that provides multiple proprietary tools.
 
 # Attributions
 The app uses icons from the following designers:
