@@ -5,12 +5,14 @@ Description: This module provides a class for filling data in a destination Exce
              
 Author: Adam Ondryas
 Email: adam.ondryas@gmail.com
+
+This software is distributed under the GPL v3.0 license.
 """
 
 # local module imports
 from .excel_data_manager import ExcelDataManager
 
-# other module imports
+# external module imports
 import pandas as pd
 import numpy as np
 
@@ -61,9 +63,6 @@ class DataFiller():
         # Appending updated dataframe to the destination Excel file
         self.destination.append_to_excel(self.destination.df[self.destination.fill_column], 
                                          startcol=fill_column_index)
-        
-        return "DataFiller"
-
         
     def _get_unique_lookup_values(self, df, lookup_column):
         return df[lookup_column].unique()

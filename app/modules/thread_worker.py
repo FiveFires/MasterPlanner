@@ -5,8 +5,11 @@ Description: This module allows long processes to run in different threads
              
 Author: Adam Ondryas
 Email: adam.ondryas@gmail.com
+
+This software is distributed under the GPL v3.0 license.
 """
 
+# external module imports
 from PyQt6.QtCore import QRunnable, QThreadPool, pyqtSlot, pyqtSignal, QObject
 
 class WorkerSignals(QObject):
@@ -23,6 +26,8 @@ class WorkerSignals(QObject):
 
     '''
     finished = pyqtSignal()
+    error = pyqtSignal()
+    result = pyqtSignal()
     progress = pyqtSignal(int)
 
 class ThreadWorker(QRunnable):
@@ -38,7 +43,6 @@ class ThreadWorker(QRunnable):
     :param kwargs: Keywords to pass to the callback function
 
     '''
-
     def __init__(self, fn, *args, **kwargs):
         super(ThreadWorker, self).__init__()
 
@@ -53,7 +57,15 @@ class ThreadWorker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-            self.fn(*self.args, **self.kwargs)
-
-            #emit the finished signal once the thread has finished
-            self.signals.finished.emit()
+            try:
+                # run the function in another thread
+                self.fn(*self.args, **self.kwargs)
+            except:
+                # emit error
+                self.signals.error.emit()
+            else:
+                # emit successful result
+                self.signals.result.emit()
+            finally:
+                # emit the finished signal once the thread has finished
+                self.signals.finished.emit()

@@ -5,8 +5,11 @@ Description: This module provides a class for reading, writing,
 
 Author: Adam Ondryas
 Email: adam.ondryas@gmail.com
+
+This software is distributed under the GPL v3.0 license.
 """
 
+# external module imports
 import pandas as pd
 
 class ExcelDataManager():

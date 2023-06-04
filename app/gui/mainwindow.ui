@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>361</width>
-    <height>497</height>
+    <width>421</width>
+    <height>542</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -506,7 +506,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <property name="iconSize">
        <size>
@@ -531,6 +531,241 @@
        <attribute name="title">
         <string>WeldingPlanner</string>
        </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <layout class="QFormLayout" name="formLayout_3">
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <item>
+               <widget class="QLabel" name="label_15">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Welding Planner Excel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="welding_planner_excel_icon">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="welding_planner_browse_file_button">
+                <property name="text">
+                 <string>Choose file...</string>
+                </property>
+                <property name="icon">
+                 <iconset>
+                  <normaloff>resources/icons/browse_files_icon.png</normaloff>resources/icons/browse_files_icon.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_24">
+              <property name="text">
+               <string>File path</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="welding_planner_fpath_ledit"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_25">
+              <property name="text">
+               <string>Column title row</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="welding_planner_col_title_row_ledit"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="formLayout_4">
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_4">
+              <item>
+               <widget class="QLabel" name="label_16">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;BI Reservations Excel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="bi_reser_excel_icon">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="bi_reser_browse_file_button">
+                <property name="text">
+                 <string>Choose file...</string>
+                </property>
+                <property name="icon">
+                 <iconset>
+                  <normaloff>resources/icons/browse_files_icon.png</normaloff>resources/icons/browse_files_icon.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_26">
+              <property name="text">
+               <string>File path</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="bi_reser_fpath_ledit"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_27">
+              <property name="text">
+               <string>Column title row</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="bi_reser_col_title_row_ledit"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="formLayout_5">
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QLabel" name="label_18">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Manufacturing Plan Excel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="manuf_plan_excel_icon">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="manuf_plan_browse_file_button">
+                <property name="text">
+                 <string>Choose file...</string>
+                </property>
+                <property name="icon">
+                 <iconset>
+                  <normaloff>resources/icons/browse_files_icon.png</normaloff>resources/icons/browse_files_icon.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_28">
+              <property name="text">
+               <string>File path</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="manuf_plan_fpath_ledit"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_29">
+              <property name="text">
+               <string>Column title row</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="manuf_plan_col_title_row_ledit"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="formLayout_6">
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_6">
+              <item>
+               <widget class="QLabel" name="label_20">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Batch Database Excel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="batch_data_excel_icon">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="batch_data_browse_file_button">
+                <property name="text">
+                 <string>Choose file...</string>
+                </property>
+                <property name="icon">
+                 <iconset>
+                  <normaloff>resources/icons/browse_files_icon.png</normaloff>resources/icons/browse_files_icon.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_30">
+              <property name="text">
+               <string>File path</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="batch_data_fpath_ledit"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_31">
+              <property name="text">
+               <string>Column title row</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="batch_data_col_title_row_ledit"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="process_welding_planner_button">
+            <property name="text">
+             <string>Create Welding Plan</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>resources/icons/process_files_icon.png</normaloff>resources/icons/process_files_icon.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="data_filler_tab">
        <attribute name="icon">
@@ -594,7 +829,7 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QLineEdit" name="src_file_path_ledit">
+             <widget class="QLineEdit" name="src_fpath_ledit">
               <property name="clearButtonEnabled">
                <bool>true</bool>
               </property>
@@ -706,7 +941,7 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QLineEdit" name="dst_file_path_ledit">
+             <widget class="QLineEdit" name="dst_fpath_ledit">
               <property name="clearButtonEnabled">
                <bool>true</bool>
               </property>
@@ -800,7 +1035,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>361</width>
+     <width>421</width>
      <height>21</height>
     </rect>
    </property>
@@ -821,13 +1056,13 @@
  </widget>
  <tabstops>
   <tabstop>src_browse_file_button</tabstop>
-  <tabstop>src_file_path_ledit</tabstop>
+  <tabstop>src_fpath_ledit</tabstop>
   <tabstop>src_sheet_name_ledit</tabstop>
   <tabstop>src_col_title_row_ledit</tabstop>
   <tabstop>src_lookup_column_ledit</tabstop>
   <tabstop>src_copy_column_ledit</tabstop>
   <tabstop>dst_browse_file_button</tabstop>
-  <tabstop>dst_file_path_ledit</tabstop>
+  <tabstop>dst_fpath_ledit</tabstop>
   <tabstop>dst_sheet_name_ledit</tabstop>
   <tabstop>dst_col_title_row_ledit</tabstop>
   <tabstop>dst_lookup_column_ledit</tabstop>
