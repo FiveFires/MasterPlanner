@@ -78,10 +78,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if response != "":
             if (self.sender() is self.src_browse_file_button):
-                self.src_file_path_ledit.setText((response[0]))
+                self.src_fpath_ledit.setText((response[0]))
 
             elif (self.sender() is self.dst_browse_file_button):
-                self.dst_file_path_ledit.setText((response[0]))
+                self.dst_fpath_ledit.setText((response[0]))
 
             elif (self.sender() is self.welding_planner_browse_file_button):
                 self.welding_planner_fpath_ledit.setText((response[0]))
@@ -123,15 +123,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             self.process_welding_planner_button.setText("Create Welding Plan")
 
-    def _run_welding_planner(self, progress_callback):
+    def _run_welding_planner(self, progress_callback=None):
         
         bi_reservations_excel = ExcelDataManager(self.bi_reser_fpath_ledit.text(),
                                                  sheet_name=0,
                                                  column_name_row=int(
                                                  self.bi_reser_col_title_row_ledit.text())-1)
         bi_reservations_excel.read_excel()
-
-        progress_callback.emit(5)
+        
+        try:
+            progress_callback.emit(5)
+        except:
+            pass
 
         manufacturing_plan_excel = ExcelDataManager(self.manuf_plan_fpath_ledit.text(),
                                                     sheet_name=0,
@@ -139,7 +142,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                                                     self.manuf_plan_col_title_row_ledit.text())-1)
         manufacturing_plan_excel.read_excel()
 
-        progress_callback.emit(10)
+        try:
+            progress_callback.emit(10)
+        except:
+            pass
 
         batch_database_excel = ExcelDataManager(self.batch_data_fpath_ledit.text(),
                                                 sheet_name=0,
@@ -156,7 +162,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             welding_planner_excel = None
 
-        progress_callback.emit(15)
+        try:
+            progress_callback.emit(15)
+        except:
+            pass
 
         welding_planner_instance = WeldingPlanner(bi_reservations_excel, 
                                                   manufacturing_plan_excel, 
@@ -166,11 +175,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         welding_planner_instance.plan_welding(progress_callback=progress_callback)
 
     def _run_data_filler(self, progress_callback):
-        src_excel = ExcelDataManager(self.src_file_path_ledit.text(), 
+        src_excel = ExcelDataManager(self.src_fpath_ledit.text(), 
                                         self.src_sheet_name_ledit.text(), 
                                         int(self.src_col_title_row_ledit.text())-1)
         
-        dst_excel = ExcelDataManager(self.dst_file_path_ledit.text(),
+        dst_excel = ExcelDataManager(self.dst_fpath_ledit.text(),
                                                 self.dst_sheet_name_ledit.text(),
                                                 int(self.dst_col_title_row_ledit.text())-1)
         

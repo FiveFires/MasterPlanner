@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 from datetime import date
 from isoweek import Week
+import os
 
 class WeldingPlanner():
     def __init__(self, bi_reservations_excel: ExcelDataManager,
@@ -60,7 +61,10 @@ class WeldingPlanner():
 
         # Iterate through all Unique material numbers
         for index, CurrentMaterialNumber in enumerate(UniqueMaterialNumbers):
-            progress_callback.emit(int((( (index+1)/UniqueMaterialNumberCount) * 80) +20))
+            try:
+                progress_callback.emit(int((( (index+1)/UniqueMaterialNumberCount) * 80) +20))
+            except:
+                pass
             # Get a subset table with all the current material numbers without the rows that have project number set as S2023
             CurrentMaterialNumber_Entries = Sheet_ListOfReservations[(Sheet_ListOfReservations['CISLO_MAT'] == CurrentMaterialNumber) & 
                                                                     (Sheet_ListOfReservations['_IB_KOKS'] != "S2023") & 
@@ -213,7 +217,14 @@ class WeldingPlanner():
             WeldingPlan_InManufacturingRows.reset_index(drop=True, inplace=True)
             WeldingPlan = pd.concat([WeldingPlan_InManufacturingRows, WeldingPlan], ignore_index=True)
 
-        # create a excel writer object
+
+        path = "./output"
+        # Check whether the specified path exists or not
+        isExist = os.path.exists(path)
+        if not isExist:
+            # Create a new directory because it does not exist
+            os.makedirs(path)
+
         with pd.ExcelWriter("output/WeldingPlan.xlsx") as writer:
             # use to_excel function and specify the sheet_name and index
             # to store the dataframe in specified sheet
