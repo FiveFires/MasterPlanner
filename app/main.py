@@ -24,7 +24,7 @@ from modules.excel_data_manager import ExcelDataManager
 from gui.main_window import Ui_MainWindow
 from modules.thread_worker import ThreadWorker
 
-app_version = "v1.1 - beta"
+app_version = "v1.2"
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
