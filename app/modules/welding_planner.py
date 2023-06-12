@@ -159,8 +159,11 @@ class WeldingPlanner():
                         # Get the material cooperation time cell value #
                         CurrentMaterialNumber_ManufacturingCooperationTime = CurrentMaterialNumber_ManufacturingTimeEntries['Norma Kooperace'].values[0]
                         
-                        # Check if the material cooperation time exists, if == "X" it does not exist yet, skip this CurrentMaterialNumber
-                        if(CurrentMaterialNumber_ManufacturingCooperationTime != "X"):
+                        # Check if the material cooperation time exists, if == "X", it does not exist yet, skip this CurrentMaterialNumber
+                        if(CurrentMaterialNumber_ManufacturingCooperationTime == "X"):
+                            ManufacturingTimeNotDefined_Count += 1
+                            XDatabaseMissingPartsList.append(CurrentMaterialNumber)
+                        else:
                             CurrentMaterialNumber_ManufacturingCooperationTime = int(np.ceil(CurrentMaterialNumber_ManufacturingCooperationTime/7))
                             CurrentMaterialNumber_PiecesInBatch = int(CurrentMaterialNumber_ManufacturingTimeEntries['Dávka'].values[0])
 
