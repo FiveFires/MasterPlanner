@@ -19,219 +19,304 @@ from datetime import date
 from isoweek import Week
 import os
 
+class PlannerMX():
+    def __init__(self, mx):
+        self.mx = mx
+        self.name = None
+        self.inventory = 0
+        self.df = pd.DataFrame(columns=["reservation", "project", "deadline"])
+        self.temp_pieces_in_batch = 0
+        self.batch_size = 0
+        self.cooperation_time = 0
+
 class WeldingPlanner():
-    def __init__(self, bi_reservations_excel: ExcelDataManager,
-                 manufacturing_plan_excel: ExcelDataManager,
-                 batch_database_excel: ExcelDataManager,
-                 welding_planner_excel=None):
-        
-        self.bi_reservations_excel = bi_reservations_excel
-        self.manufacturing_plan_excel = manufacturing_plan_excel
-        self.batch_database_excel = batch_database_excel
+    def __init__(self, welding_planner_excel=None):
         self.welding_planner_excel = welding_planner_excel
+        self.planner_mx = None
+        self.production_batches = []
+        self.batch_database_missing_parts = []
+
+    def plan_welding(self, bi_reservations_excel, manufacturing_plan_excel, 
+                     batch_database_excel, progress_callback=None):
+
+        # Read and load data from the input Excel files
+        bi_reservations_excel.df = bi_reservations_excel.read_excel()
+        self._update_progress_bar(progress_callback, 5)
         
-    def plan_welding(self, progress_callback=None):
-        Sheet_ListOfReservations = self.bi_reservations_excel.df
-        Sheet_ManufacturingPlan = self.manufacturing_plan_excel.df
-        Sheet_ManufacturingTime = self.batch_database_excel.df
+        manufacturing_plan_excel.df = manufacturing_plan_excel.read_excel()
+        self._update_progress_bar(progress_callback, 10)
+
+        batch_database_excel.df = batch_database_excel.read_excel()
+        self._update_progress_bar(progress_callback, 15)
 
         if self.welding_planner_excel != None:
-            Sheet_WeldingPlan8000 = self.welding_planner_excel.df
-            ResetPlan = False
-        else:
-            ResetPlan = True
+            self.welding_planner_excel.df = self.welding_planner_excel.read_excel()
 
+        # Fill all the NaNs to zero in STAV_MAT column
+        self._fill_empty_cells(bi_reservations_excel.df["STAV_MAT"], 0)
+
+        # Get a list of unique material numbers
+        unique_MXs = self._get_unique_values_in_column(bi_reservations_excel.df, "CISLO_MAT")
+
+        # Iterate through all unique material numbers
+        for index, current_mx in enumerate(unique_MXs):
+            self._update_progress_bar(progress_callback, int( (((index+1) /  unique_MXs.size) * 80) + 20) )
+
+            # Create a PlannerMX object for the current material number
+            self.planner_mx = PlannerMX(current_mx)
+
+            # Retrieve batch size and manufacturing time for the material number
+            self._get_batch_and_manufacturing_time(batch_database_excel.df)
+
+            if(self.planner_mx.batch_size == 0):
+                # Skip if the batch size is zero (missing parts in the batch database)
+                self.batch_database_missing_parts.append(self.planner_mx.mx)
+                continue
+
+            # Filter and fill the MX planner with reservations data
+            self._filter_fill_mx_planner(bi_reservations_excel.df)
+            
+            # Skip if the dataframe is empty or if the inventory is sufficient
+            if( (self.planner_mx.df.shape[0] == 0) or (self._is_inventory_sufficient()) ):
+                continue
+
+            # Retrieve project deadlines from the manufacturing plan dataframe
+            self._get_project_deadlines(manufacturing_plan_excel.df)
+            
+            if(self.planner_mx.df.shape[0] == 0):
+                continue
+
+            # Drop projects covered by the inventory from the MX planner dataframe
+            self._drop_projects_covered_by_inventory()
+
+            # Generate production batches based on the MX planner dataframe
+            self._generate_production_batches()
+
+        # Generate the output Excel file
+        self._generate_output_excel()
+
+    def _fill_empty_cells(self, df, fill_value):
+        df.fillna(fill_value, inplace=True)
+        
+    def _get_unique_values_in_column(self, df, column_title):
+        return (df[column_title].unique())
+    
+    def _is_inventory_sufficient(self):
+        return (self.planner_mx.inventory >= int(self.planner_mx.df["reservation"].sum()) )
+    
+    def _filter_fill_mx_planner(self, reservations_df):
+        # Filter rows based on specific conditions from the reservations dataframe
+        filtered_rows = reservations_df[(reservations_df['CISLO_MAT'] == self.planner_mx.mx) &
+                                        (reservations_df['_IB_KOKS'] != "S2023") & 
+                                        (reservations_df['CIS_OBJ'].str.get(1) != "K") &
+                                        (reservations_df['CIS_OBJ'] != 0)]
+
+        # Further filter rows to remove duplicates and specific values from "_IB_KOKS" column
+        filtered_rows = filtered_rows[((~filtered_rows.duplicated("_IB_KOKS")) | 
+                                       (filtered_rows["_IB_KOKS"] == "M2022")  | 
+                                       (filtered_rows["_IB_KOKS"] == "M2023") )]
+        
+        if(filtered_rows.shape[0] >= 1):
+            filtered_rows.reset_index(drop=True)
+
+            # Fill PlannerMX object with the filtered data
+            self.planner_mx.name = filtered_rows["NAZEV_MAT"].values[0]
+            self.planner_mx.inventory = int(filtered_rows["STAV_MAT"].values[0]) + self._get_count_in_manufacturing()
+
+            self.planner_mx.df["reservation"] = filtered_rows["MNOZSTVI"]
+            self.planner_mx.df["project"] = filtered_rows["_IB_KOKS"]
+            self.planner_mx.df["deadline"] = filtered_rows["DODATUMU"].dt.isocalendar().week
+
+    def _get_count_in_manufacturing(self):
+        retval = 0
+
+        if(self.welding_planner_excel is not None):
+            # Filter rows based on material number and batches in production
+            in_manufacturing = self.welding_planner_excel.df[( (self.welding_planner_excel.df["MATERIAL NUMBER"] == self.planner_mx.mx) &
+                                                               (self.welding_planner_excel.df["BATCH IN PRODUCTION"].values > 0) )]
+
+            if(in_manufacturing.shape[0] >= 1):
+                    # Calculate the sum of items in production batches
+                    retval = int(in_manufacturing["BATCH IN PRODUCTION"].sum())
+
+        return retval
+    
+    def _get_project_deadlines(self, manufacturing_plan_df):
+        # Filter out M2022 and M2023 projects from the PlannerMX dataframe
+        filtered_planner_mx_df = self.planner_mx.df[(self.planner_mx.df["project"] != "M2022") & (self.planner_mx.df["project"] != "M2023")]
+
+        # Get unique project numbers from the filtered PlannerMX dataframe
+        unique_project_numbers = self._get_unique_values_in_column(filtered_planner_mx_df, "project")
+
+        # Filter the manufacturing plan dataframe based on unique project numbers, "Unnamed: 9" column is the project numbers column
+        filtered_manufacturing_plan_df = manufacturing_plan_df.loc[manufacturing_plan_df["Unnamed: 9"].isin(unique_project_numbers)]
+
+        if(filtered_planner_mx_df.shape[0] != filtered_manufacturing_plan_df.shape[0]):
+            # Drop duplicates in the manufacturing plan dataframe based on project numbers
+            filtered_manufacturing_plan_df = filtered_manufacturing_plan_df.drop_duplicates(subset="Unnamed: 9")
+
+            if(filtered_planner_mx_df.shape[0] != filtered_manufacturing_plan_df.shape[0]):
+                # Find projects that were found in the manufacturing plan
+                projects_found = filtered_manufacturing_plan_df["Unnamed: 9"]
+
+                # Filter the PlannerMX dataframe based on found projects
+                filtered_planner_mx_df = filtered_planner_mx_df[filtered_planner_mx_df["project"].isin(projects_found)]
+
+                self.planner_mx.df = self.planner_mx.df[self.planner_mx.df["project"].isin(projects_found) |
+                                                       (self.planner_mx.df["project"] == "M2022") |
+                                                       (self.planner_mx.df["project"] == "M2023")]
+
+        # Sort the dataframes by project number and index them to match
+        filtered_planner_mx_df = filtered_planner_mx_df.sort_values("project", ascending=True)
+        filtered_manufacturing_plan_df = filtered_manufacturing_plan_df.sort_values("Unnamed: 9", ascending=True)
+        filtered_manufacturing_plan_df.index = filtered_planner_mx_df.index
+
+        # Update the PlannerMX dataframe's "deadline" column with the manufacturing plan's delivery week
+        self.planner_mx.df.loc[(self.planner_mx.df["project"] != "M2023") & 
+                               (self.planner_mx.df["project"] != "M2022"), "deadline"] = filtered_manufacturing_plan_df["CURRENT DELIVERY WEEK "]
+        
+    def _drop_projects_covered_by_inventory(self):
+        # Sort the merged subsets by delivery week and reset row indeces
+        self.planner_mx.df = self.planner_mx.df.sort_values('deadline', ascending=True)
+        self.planner_mx.df = self.planner_mx.df.reset_index(drop=True)
+
+        # Iterate over the count of reserved pieces and continually subtract them from the inventory count
+        # remove a row each time until inventory count gets to zero -->
+        # --> this selects only the projects that do not have enough materials for them
+        for reserved_pieces_count in self.planner_mx.df['reservation'].values:
+            self.planner_mx.inventory -= reserved_pieces_count
+            
+            # Project is covered by inventory, can drop the row
+            if(self.planner_mx.inventory >= 0):
+                self.planner_mx.df = self.planner_mx.df.drop(self.planner_mx.df.index[0])
+
+            # Project is not covered by inventory, break the cycle
+            # and add the leftover inventory count to the first batch count
+            elif(self.planner_mx.inventory < 0):
+                self.temp_pieces_in_batch = (self.planner_mx.inventory + reserved_pieces_count)
+                break
+
+    def _get_batch_and_manufacturing_time(self, batch_databse_df):
+            filtered_batch_database_df = batch_databse_df[batch_databse_df["Číslo"] == self.planner_mx.mx]
+
+            # Check if not empty
+            if(filtered_batch_database_df.shape[0] != 0):
+                manufacturing_cooperation_time = filtered_batch_database_df["Norma Kooperace"].values[0]
+
+                # Check if the material cooperation time exists, if == "X", it does not exist yet, skip this CurrentMaterialNumber
+                if(manufacturing_cooperation_time != "X"):
+                    self.planner_mx.cooperation_time = int(np.ceil(manufacturing_cooperation_time/7))
+                    self.planner_mx.batch_size = int(filtered_batch_database_df["Dávka"].values[0])
+
+    def _generate_production_batches(self):
         TodaysDate = date.today()
-        ManufacturingTimeNotDefined_Count = 0
-        OutputList = [0] * 6
-        FinalOutputList = []
-        XDatabaseMissingPartsList = []
 
         # CONFIG VARIABLES --> CAN BE CHANGED TO BE MORE OR LESS CONSERVATIVE
         #MaterialDeliveryTimeInWeeks = 4
         MaterialPickingTimeInWeeks = 2
         AssemblyTimeInWeeks = 1
 
-        # Fill all the NaNs to zero in STAV_MAT column
-        Sheet_ListOfReservations.fillna(0, inplace=True)
-        # Get a list of Unique material numbers
-        UniqueMaterialNumbers = Sheet_ListOfReservations['CISLO_MAT'].unique()
-
-        UniqueMaterialNumberCount = UniqueMaterialNumbers.size
-
-        # Iterate through all Unique material numbers
-        for index, CurrentMaterialNumber in enumerate(UniqueMaterialNumbers):
-            try:
-                progress_callback.emit(int((( (index+1)/UniqueMaterialNumberCount) * 80) +20))
+        production_batch = [0] * 6
+        
+        while(self.planner_mx.df.shape[0] > 0):
+            # Set the values for this production batch
+            production_batch[0] = self.planner_mx.mx
+            production_batch[1] = self.planner_mx.name
+            production_batch[2] = self.planner_mx.batch_size
+            try:                        
+                production_batch[3] = Week(TodaysDate.year, int(self.planner_mx.df['deadline'].values[0]
+                                                    - MaterialPickingTimeInWeeks 
+                                                    - AssemblyTimeInWeeks)).monday()
             except:
-                pass
-            # Get a subset table with all the current material numbers without the rows that have project number set as S2023
-            CurrentMaterialNumber_Entries = Sheet_ListOfReservations[(Sheet_ListOfReservations['CISLO_MAT'] == CurrentMaterialNumber) & 
-                                                                    (Sheet_ListOfReservations['_IB_KOKS'] != "S2023") & 
-                                                                    (Sheet_ListOfReservations['_IB_KOKS'] != "M2023") & 
-                                                                    (Sheet_ListOfReservations['CIS_OBJ'].str.get(1) != "K") &
-                                                                    (Sheet_ListOfReservations['CIS_OBJ'] != 0)]
-            
-            # Check if CurrentMaterialNumber_Entries is not empty
-            if(CurrentMaterialNumber_Entries.shape[0] >= 1):
-                ### WARNING: MIGHT CAUSE ISSUES LATER FOR PROPER PLANNING, FIND BETTER SOLUTION ###
-                #Drop rows with duplicit Project Numbers that were found in the Reservation List before going forward
-                CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.drop_duplicates(subset='_IB_KOKS')
+                print(f"failed at {self.planner_mx.mx}")
 
-                # Get a Reservations count of current material numbers
-                CurrentMaterialNumber_ReservationsCount = CurrentMaterialNumber_Entries['MNOZSTVI'].sum()
+            production_batch[4] = Week(TodaysDate.year, int(self.planner_mx.df['deadline'].values[0]
+                                                    - MaterialPickingTimeInWeeks
+                                                    - AssemblyTimeInWeeks
+                                                    - self.planner_mx.cooperation_time)).monday()
+            production_batch[5] = 0
 
-                # Get an inventory count of current material numbers
-                CurrentMaterialNumber_InventoryCount = int(CurrentMaterialNumber_Entries.loc[CurrentMaterialNumber_Entries.index[0],'STAV_MAT'])
+            # Add the production batch to the list of batches
+            self.production_batches.append(production_batch.copy())
 
-                if(ResetPlan == False):
-                    CurrentMaterialNumber_AlreadyInManufacturing_Entries = Sheet_WeldingPlan8000[(Sheet_WeldingPlan8000["MATERIAL NUMBER"] == CurrentMaterialNumber) &
-                                                                                        (Sheet_WeldingPlan8000["BATCH IN PRODUCTION"].values > 0)]
-                    
-                    if(CurrentMaterialNumber_AlreadyInManufacturing_Entries.shape[0] >= 1):
-                        CurrentMaterialNumber_AlreadyInManufacturing_Count = CurrentMaterialNumber_AlreadyInManufacturing_Entries["BATCH IN PRODUCTION"].sum()
-                        CurrentMaterialNumber_InventoryCount += CurrentMaterialNumber_AlreadyInManufacturing_Count
+            # Initialize temporary variables
+            self.planner_mx.temp_pieces_in_batch += self.planner_mx.batch_size
+            num_of_rows_to_be_deleted = 0
 
-                # Check if there is enough material
-                if (CurrentMaterialNumber_ReservationsCount > CurrentMaterialNumber_InventoryCount):
-                    # If there is not enough material, get all the current material number's unique project numbers
-                    CurrentMaterialNumber_UniqueProjectNumbers = CurrentMaterialNumber_Entries['_IB_KOKS'].unique()
+            # Figure out how many projects (rows) are covered by each production batch
+            for reserved_pieces_count in self.planner_mx.df['reservation'].values:                      
+                self.planner_mx.temp_pieces_in_batch -= reserved_pieces_count
+                
+                # If the batch covers more than one reservation, continue subtracting
+                if(self.planner_mx.temp_pieces_in_batch > 0):
+                    num_of_rows_to_be_deleted += 1
+                
+                # If the reservations deplete the batch, drop the covered rows and break to create a new batch
+                elif(self.planner_mx.temp_pieces_in_batch == 0):
+                    num_of_rows_to_be_deleted += 1
+                    self.planner_mx.df.drop(self.planner_mx.df.index[0:num_of_rows_to_be_deleted], inplace=True)
+                    break
 
-                    # Get the rows with all the current Unique project numbers for the current material number from the manufacturing plan sheet
-                    CurrentUniqueProjectNumbers_Entries = Sheet_ManufacturingPlan.loc[Sheet_ManufacturingPlan['Unnamed: 9'].isin(CurrentMaterialNumber_UniqueProjectNumbers)]
+                # If the batch has excess pieces after covering reservations, adjust and drop the covered rows
+                elif(self.planner_mx.temp_pieces_in_batch < 0):
+                    self.planner_mx.temp_pieces_in_batch += reserved_pieces_count
+                    self.planner_mx.df.drop(self.planner_mx.df.index[0:num_of_rows_to_be_deleted], inplace=True)
+                    break
 
-                    # Check if some Project Numbers that are found in Manufacturing Plan are aligned with Reservation Project Numbers
-                    if(CurrentUniqueProjectNumbers_Entries.shape[0] != CurrentMaterialNumber_Entries.shape[0]):
+                # If the number of rows to be deleted exceeds the available rows, drop all the rows
+                if(num_of_rows_to_be_deleted >= self.planner_mx.df.shape[0]):
+                    self.planner_mx.df.drop(self.planner_mx.df.index[0:num_of_rows_to_be_deleted], inplace=True)
+                    break
 
-                        # Delete rows with duplicit Project Numbers from Manufacturing Plan
-                        CurrentUniqueProjectNumbers_Entries = CurrentUniqueProjectNumbers_Entries.drop_duplicates(subset='Unnamed: 9')
+    def _generate_output_excel(self):
+        # Create a DataFrame from the production batches:
+        welding_plan_df = pd.DataFrame(self.production_batches, 
+                                       columns=["MATERIAL NUMBER", 
+                                                "NAME", 
+                                                "PIECES IN BATCH", 
+                                                "READY FOR PICKING", 
+                                                "WELDING COMPLETED", 
+                                                "BATCH IN PRODUCTION"])
+        
+        # Sort the DataFrame by "READY FOR PICKING" column in ascending order
+        welding_plan_df.sort_values("READY FOR PICKING", ascending=True, inplace=True)
 
-                        # Check if Project Numbers from Manufacturing Plan are now aligned with Reservation Project Numbers
-                        if(CurrentUniqueProjectNumbers_Entries.shape[0] != CurrentMaterialNumber_Entries.shape[0]):
+        # Reset the index of the DataFrame
+        welding_plan_df.reset_index(drop=True, inplace=True)
 
-                            # Get a list of Project Numbers that was found in the Manufacturing Plan
-                            ManufacturingPlan_UniqueProjectNumbers = CurrentUniqueProjectNumbers_Entries['Unnamed: 9']
+        if(self.welding_planner_excel != None):
+            # Filter rows from the welding planner Excel DataFrame where "BATCH IN PRODUCTION" is greater than 0
+            in_manufacturing_rows = self.welding_planner_excel.df[self.welding_planner_excel.df["BATCH IN PRODUCTION"].values > 0]
+            in_manufacturing_rows.reset_index(drop=True, inplace=True)
 
-                            # Update the Current Material Number entries subset with only valid project numbers that were actually found in the Manufacturing Plan
-                            CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries[CurrentMaterialNumber_Entries['_IB_KOKS'].isin(ManufacturingPlan_UniqueProjectNumbers)]
+            # Concatenate the filtered rows with the welding plan DataFrame
+            welding_plan_df = pd.concat([in_manufacturing_rows, welding_plan_df], ignore_index=True)
 
-                    # PREPARE BOTH SUBSETS FOR MERGE
-                    # Sort the rows in the Manufacturing Plan subset by Project Number aka unnamed 9
-                    CurrentUniqueProjectNumbers_Entries = CurrentUniqueProjectNumbers_Entries.sort_values('Unnamed: 9', ascending=True)
-                    # Sort the rows in the ListOfReservations subset by Project Number aka _IB_KOKS
-                    CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.sort_values('_IB_KOKS', ascending=True)
-
-                    # Align indexes to merge correctly
-                    CurrentUniqueProjectNumbers_Entries.index = CurrentMaterialNumber_Entries.index
-
-                    # Merge the Project numbers and Delivery weeks into the Current Material Number subset sheet
-                    CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.join(CurrentUniqueProjectNumbers_Entries['CURRENT DELIVERY WEEK '])
-                    CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.join(CurrentUniqueProjectNumbers_Entries['Unnamed: 9'])
-
-                    # Sort the merged subsets by delivery week and reset row indeces
-                    CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.sort_values('CURRENT DELIVERY WEEK ', ascending=True)
-                    CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.reset_index(drop=True)
-
-                    # Reset the variable to not carryover batch counts from previous Material Numbers
-                    Temp_PiecesInBatch = 0
-
-                    # Iterate over the count of reserved pieces and continually subtract them from the inventory count
-                    # remove a row each time until inventory count gets to zero -->
-                    # --> this selects only the projects that do not have enough materials for them
-                    for ReservedPiecesCount in CurrentMaterialNumber_Entries['MNOZSTVI'].values:
-                        CurrentMaterialNumber_InventoryCount -= ReservedPiecesCount
-                        
-                        # Project is covered by inventory, can drop the row
-                        if(CurrentMaterialNumber_InventoryCount >= 0):
-                            CurrentMaterialNumber_Entries = CurrentMaterialNumber_Entries.drop(CurrentMaterialNumber_Entries.index[0])
-
-                        # Project is not covered by inventory, break the cycle
-                        # and add the leftover inventory count to the first batch count
-                        elif(CurrentMaterialNumber_InventoryCount < 0):
-                            Temp_PiecesInBatch = (CurrentMaterialNumber_InventoryCount + ReservedPiecesCount)
-                            break
-
-                    CurrentMaterialNumber_ManufacturingTimeEntries = Sheet_ManufacturingTime[Sheet_ManufacturingTime['Číslo'] == CurrentMaterialNumber]
-                    if(CurrentMaterialNumber_ManufacturingTimeEntries.shape[0] == 0):
-                        ManufacturingTimeNotDefined_Count += 1
-                        XDatabaseMissingPartsList.append(CurrentMaterialNumber)
-                    else:
-                        # Get the material cooperation time cell value #
-                        CurrentMaterialNumber_ManufacturingCooperationTime = CurrentMaterialNumber_ManufacturingTimeEntries['Norma Kooperace'].values[0]
-                        
-                        # Check if the material cooperation time exists, if == "X", it does not exist yet, skip this CurrentMaterialNumber
-                        if(CurrentMaterialNumber_ManufacturingCooperationTime == "X"):
-                            ManufacturingTimeNotDefined_Count += 1
-                            XDatabaseMissingPartsList.append(CurrentMaterialNumber)
-                        else:
-                            CurrentMaterialNumber_ManufacturingCooperationTime = int(np.ceil(CurrentMaterialNumber_ManufacturingCooperationTime/7))
-                            CurrentMaterialNumber_PiecesInBatch = int(CurrentMaterialNumber_ManufacturingTimeEntries['Dávka'].values[0])
-
-                            while(CurrentMaterialNumber_Entries.shape[0] > 0):
-                                # Fill the row (list)
-                                OutputList[0] = CurrentMaterialNumber
-                                OutputList[1] = CurrentMaterialNumber_Entries['NAZEV_MAT'].values[0]
-                                OutputList[2] = CurrentMaterialNumber_PiecesInBatch                        
-                                OutputList[3] = Week(TodaysDate.year, int(CurrentMaterialNumber_Entries['CURRENT DELIVERY WEEK '].values[0] - 
-                                                    MaterialPickingTimeInWeeks - 
-                                                    AssemblyTimeInWeeks)).monday()
-                                
-                                OutputList[4] = Week(TodaysDate.year, int(CurrentMaterialNumber_Entries['CURRENT DELIVERY WEEK '].values[0] - 
-                                                                        MaterialPickingTimeInWeeks - 
-                                                                        AssemblyTimeInWeeks - 
-                                                                        CurrentMaterialNumber_ManufacturingCooperationTime)).monday()
-                                OutputList[5] = 0
-                                # Add the row to the list of lists
-                                FinalOutputList.append(OutputList.copy())
-
-                                # Setup temp vars
-                                Temp_PiecesInBatch += CurrentMaterialNumber_PiecesInBatch
-                                NumberOfRowsToBeDeleted = 0
-
-                                # Figure out how many projects(rows) are covered by each production batch
-                                for ReservedPiecesCount in CurrentMaterialNumber_Entries['MNOZSTVI'].values:                      
-                                    Temp_PiecesInBatch -= ReservedPiecesCount
-                                    
-                                    # Batch covers more than one Reservation, continue subtracting
-                                    if(Temp_PiecesInBatch > 0):
-                                        NumberOfRowsToBeDeleted += 1
-                                    
-                                    # Reservations depleted the batch, drop the covered rows and break to make a new batch
-                                    elif(Temp_PiecesInBatch == 0):
-                                        NumberOfRowsToBeDeleted += 1
-                                        CurrentMaterialNumber_Entries.drop(CurrentMaterialNumber_Entries.index[0:NumberOfRowsToBeDeleted], inplace=True)
-                                        break
-
-                                    elif(Temp_PiecesInBatch < 0):
-                                        Temp_PiecesInBatch += ReservedPiecesCount
-                                        CurrentMaterialNumber_Entries.drop(CurrentMaterialNumber_Entries.index[0:NumberOfRowsToBeDeleted], inplace=True)
-                                        break
-
-                                    if(NumberOfRowsToBeDeleted >= CurrentMaterialNumber_Entries.shape[0]):
-                                        CurrentMaterialNumber_Entries.drop(CurrentMaterialNumber_Entries.index[0:NumberOfRowsToBeDeleted], inplace=True)
-                                        break
-
-        WeldingPlan = pd.DataFrame(FinalOutputList, columns=["MATERIAL NUMBER", "NAME", "PIECES IN BATCH", "READY FOR PICKING [CW]", "WELDING COMPLETED [CW]", "BATCH IN PRODUCTION"])
-        WeldingPlan.sort_values("READY FOR PICKING [CW]", ascending=True, inplace=True)
-        WeldingPlan.reset_index(drop=True, inplace=True)
-
-        if(ResetPlan == False):
-            WeldingPlan_InManufacturingRows = Sheet_WeldingPlan8000[Sheet_WeldingPlan8000["BATCH IN PRODUCTION"].values > 0]
-            WeldingPlan_InManufacturingRows.reset_index(drop=True, inplace=True)
-            WeldingPlan = pd.concat([WeldingPlan_InManufacturingRows, WeldingPlan], ignore_index=True)
-
-
+        # Specify the output path for the Excel file
         path = "./output"
+
         # Check whether the specified path exists or not
         isExist = os.path.exists(path)
+
         if not isExist:
-            # Create a new directory because it does not exist
+            # Create a new directory if it does not exist
             os.makedirs(path)
 
+        # Create an Excel file and write the DataFrames to different sheets
         with pd.ExcelWriter("output/WeldingPlan.xlsx") as writer:
-            # use to_excel function and specify the sheet_name and index
-            # to store the dataframe in specified sheet
-            WeldingPlan.to_excel(writer, sheet_name="WeldingPlan", index=False)
-            if(ManufacturingTimeNotDefined_Count > 0):
-                XDatabaseMissingParts = pd.DataFrame(XDatabaseMissingPartsList, columns=["MATERIAL NUMBER"])
-                XDatabaseMissingParts.to_excel(writer, sheet_name="X_database missing", index=False)
+            # Write the welding plan DataFrame to the "WeldingPlan" sheet
+            welding_plan_df.to_excel(writer, sheet_name="Welding Plan", index=False)
+
+            if(len(self.batch_database_missing_parts) > 0):
+                # Create a DataFrame from the batch database missing parts list
+                x_database_missing_df = pd.DataFrame(self.batch_database_missing_parts, columns=["MATERIAL NUMBER"])
+
+                # Write the batch database missing parts DataFrame to the "X_database missing" sheet
+                x_database_missing_df.to_excel(writer, sheet_name="X_database missing", index=False)
+
+    def _update_progress_bar(self, progress_callback, percentage):
+        try:
+            progress_callback.emit(percentage)
+        except Exception as e:
+            print("An error occured while updating the progress bar")
+

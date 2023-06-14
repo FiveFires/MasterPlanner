@@ -24,7 +24,7 @@ from modules.excel_data_manager import ExcelDataManager
 from gui.main_window import Ui_MainWindow
 from modules.thread_worker import ThreadWorker
 
-app_version = "v1.2.1"
+app_version = "v1.3"
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, obj=None, **kwargs):
@@ -129,50 +129,29 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                                                  sheet_name=0,
                                                  column_name_row=int(
                                                  self.bi_reser_col_title_row_ledit.text())-1)
-        bi_reservations_excel.read_excel()
-        
-        try:
-            progress_callback.emit(5)
-        except:
-            pass
 
         manufacturing_plan_excel = ExcelDataManager(self.manuf_plan_fpath_ledit.text(),
                                                     sheet_name=0,
                                                     column_name_row=int(
                                                     self.manuf_plan_col_title_row_ledit.text())-1)
-        manufacturing_plan_excel.read_excel()
-
-        try:
-            progress_callback.emit(10)
-        except:
-            pass
 
         batch_database_excel = ExcelDataManager(self.batch_data_fpath_ledit.text(),
                                                 sheet_name=0,
                                                 column_name_row=int(
                                                 self.batch_data_col_title_row_ledit.text())-1)
-        batch_database_excel.read_excel()
 
         if(self.welding_planner_fpath_ledit.text() != ""):
             welding_planner_excel = ExcelDataManager(self.welding_planner_fpath_ledit.text(),
-                                                     sheet_name=0,
+                                                     sheet_name="Welding Plan",
                                                      column_name_row=int(
                                                      self.welding_planner_col_title_row_ledit.text())-1) 
-            welding_planner_excel.read_excel()
         else:
             welding_planner_excel = None
 
-        try:
-            progress_callback.emit(15)
-        except:
-            pass
-
-        welding_planner_instance = WeldingPlanner(bi_reservations_excel, 
-                                                  manufacturing_plan_excel, 
-                                                  batch_database_excel,
-                                                  welding_planner_excel)
+        welding_planner_instance = WeldingPlanner(welding_planner_excel)
         
-        welding_planner_instance.plan_welding(progress_callback=progress_callback)
+        welding_planner_instance.plan_welding(bi_reservations_excel, manufacturing_plan_excel, 
+                                              batch_database_excel, progress_callback=progress_callback)
 
     def _run_data_filler(self, progress_callback):
         src_excel = ExcelDataManager(self.src_fpath_ledit.text(), 
@@ -183,8 +162,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                                                 self.dst_sheet_name_ledit.text(),
                                                 int(self.dst_col_title_row_ledit.text())-1)
         
-        src_excel.read_excel()
-        dst_excel.read_excel()
+        src_excel.df = src_excel.read_excel()
+        dst_excel.df = dst_excel.read_excel()
 
         data_filler_instance = DataFiller(src_excel, dst_excel, 
                                             self.src_lookup_column_ledit.text(), 

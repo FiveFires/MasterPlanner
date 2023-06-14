@@ -21,7 +21,7 @@ class ExcelDataManager():
 
     def read_excel(self):
         try:
-            self.df = pd.read_excel(self.file_path, self.sheet_name, skiprows=self.column_name_row)
+            return (pd.read_excel(self.file_path, self.sheet_name, skiprows=self.column_name_row))
         
         except FileNotFoundError:
             print(f"File '{self.file_path}' not found.")
