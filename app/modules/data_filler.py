@@ -65,7 +65,10 @@ class DataFiller():
                                          startcol=fill_column_index)
         
     def _get_unique_lookup_values(self, df, lookup_column):
-        return df[lookup_column].unique()
+        # Make sure all inputs are a string
+        df[lookup_column] = df[lookup_column].astype(str)
+
+        return  df[lookup_column].unique()
     
     def _find_common_values(self, array1, array2):
         return np.intersect1d(array1, array2)
