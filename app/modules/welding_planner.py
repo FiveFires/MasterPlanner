@@ -107,14 +107,14 @@ class WeldingPlanner():
     def _filter_fill_mx_planner(self, reservations_df):
         # Filter rows based on specific conditions from the reservations dataframe
         filtered_rows = reservations_df[(reservations_df['CISLO_MAT'] == self.planner_mx.mx) &
-                                        (reservations_df['_IB_KOKS'] != "S2023") & 
+                                        (reservations_df['_IB_KOKS'] != "S2024") & 
                                         (reservations_df['CIS_OBJ'].str.get(1) != "K") &
                                         (reservations_df['CIS_OBJ'] != 0)]
 
         # Further filter rows to remove duplicates and specific values from "_IB_KOKS" column
         filtered_rows = filtered_rows[((~filtered_rows.duplicated("_IB_KOKS")) | 
-                                       (filtered_rows["_IB_KOKS"] == "M2022")  | 
-                                       (filtered_rows["_IB_KOKS"] == "M2023") )]
+                                       (filtered_rows["_IB_KOKS"] == "M2023")  | 
+                                       (filtered_rows["_IB_KOKS"] == "M2024") )]
         
         if(filtered_rows.shape[0] >= 1):
             filtered_rows.reset_index(drop=True)
@@ -143,7 +143,7 @@ class WeldingPlanner():
     
     def _get_project_deadlines(self, manufacturing_plan_df):
         # Filter out M2022 and M2023 projects from the PlannerMX dataframe
-        filtered_planner_mx_df = self.planner_mx.df[(self.planner_mx.df["project"] != "M2022") & (self.planner_mx.df["project"] != "M2023")]
+        filtered_planner_mx_df = self.planner_mx.df[(self.planner_mx.df["project"] != "M2023") & (self.planner_mx.df["project"] != "M2024")]
 
         # Get unique project numbers from the filtered PlannerMX dataframe
         unique_project_numbers = self._get_unique_values_in_column(filtered_planner_mx_df, "project")
@@ -163,8 +163,8 @@ class WeldingPlanner():
                 filtered_planner_mx_df = filtered_planner_mx_df[filtered_planner_mx_df["project"].isin(projects_found)]
 
                 self.planner_mx.df = self.planner_mx.df[self.planner_mx.df["project"].isin(projects_found) |
-                                                       (self.planner_mx.df["project"] == "M2022") |
-                                                       (self.planner_mx.df["project"] == "M2023")]
+                                                       (self.planner_mx.df["project"] == "M2023") |
+                                                       (self.planner_mx.df["project"] == "M2024")]
 
         # Sort the dataframes by project number and index them to match
         filtered_planner_mx_df = filtered_planner_mx_df.sort_values("project", ascending=True)
@@ -173,7 +173,7 @@ class WeldingPlanner():
 
         # Update the PlannerMX dataframe's "deadline" column with the manufacturing plan's delivery week
         self.planner_mx.df.loc[(self.planner_mx.df["project"] != "M2023") & 
-                               (self.planner_mx.df["project"] != "M2022"), "deadline"] = filtered_manufacturing_plan_df["CURRENT DELIVERY WEEK "]
+                               (self.planner_mx.df["project"] != "M2024"), "deadline"] = filtered_manufacturing_plan_df["CURRENT DELIVERY WEEK "]
         
     def _drop_projects_covered_by_inventory(self):
         # Sort the merged subsets by delivery week and reset row indeces
